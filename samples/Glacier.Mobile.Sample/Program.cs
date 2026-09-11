@@ -3,6 +3,7 @@ namespace Glacier.Mobile.Sample;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Glacier.Mobile.Core;
 using Glacier.Mobile.Input;
 using Glacier.Mobile.Interop;
@@ -153,5 +154,25 @@ public class Program
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("\nAll Glacier.Mobile benchmarks, touch dispatch, and rendering tests PASSED!");
         Console.ResetColor();
+
+        bool isHeadless = args.Contains("--headless") || args.Contains("--bench");
+        if (!isHeadless)
+        {
+            try
+            {
+                Console.WriteLine($"\n[Displaying rendered mobile UI snapshot on screen: {outPath}]");
+                Process.Start(new ProcessStartInfo(outPath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  (Could not open image viewer: {ex.Message})");
+            }
+
+            if (Environment.UserInteractive && !Console.IsInputRedirected)
+            {
+                Console.WriteLine("\n[Press any key to exit...]");
+                Console.ReadKey();
+            }
+        }
     }
 }
