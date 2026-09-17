@@ -30,6 +30,21 @@
 
 ---
 
+## 🖼️ Visual Gallery: Real Rendered Mobile UI Snapshot
+
+The screen below is captured directly from `Glacier.Mobile.Sample` running on the native Skia GPU compositor at 120Hz:
+
+<div align="center">
+
+| Glacier.Mobile System Monitor (iOS / Android Layout) |
+| :---: |
+| <img src="docs/images/glacier_mobile_dashboard.png" width="393" alt="Glacier.Mobile System Monitor" /> |
+| *Native mobile layout with Polaris DataFrame telemetry stream, device diagnostics, and touch controls* |
+
+</div>
+
+---
+
 ## 2. Mobile Architecture & Rendering Pipeline
 
 ```
