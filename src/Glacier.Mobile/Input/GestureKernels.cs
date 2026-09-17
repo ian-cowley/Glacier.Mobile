@@ -18,6 +18,8 @@ public static unsafe class GestureKernels
     /// <summary>
     /// Applies exponential inertial decay across a batch of velocity vectors.
     /// Clamps asymptotic decay to zero when falling below VelocityEpsilon.
+    /// Optimized with direct scalar fast-paths for N=1 and N=2 (99%+ of mobile touch interactions),
+    /// Vector128 fast-path for N=4 (dual-touch gestures), and Vector512/Vector256/Vector128 batch loops.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static void ApplyInertiaDamping(
@@ -27,29 +29,65 @@ public static unsafe class GestureKernels
         int count = velocities.Length;
         if (count == 0) return;
 
+        ref float vRef = ref velocities[0];
+
+        // Fast-path: N=1 (single 1D touch velocity, e.g. vertical scroll or horizontal swipe)
+        if (count == 1)
+        {
+            float v = vRef * frictionCoefficient;
+            vRef = MathF.Abs(v) < VelocityEpsilon ? 0.0f : v;
+            return;
+        }
+
+        // Fast-path: N=2 (single 2D touch velocity X/Y)
+        if (count == 2)
+        {
+            float v0 = vRef * frictionCoefficient;
+            float v1 = Unsafe.Add(ref vRef, 1) * frictionCoefficient;
+            vRef = MathF.Abs(v0) < VelocityEpsilon ? 0.0f : v0;
+            Unsafe.Add(ref vRef, 1) = MathF.Abs(v1) < VelocityEpsilon ? 0.0f : v1;
+            return;
+        }
+
+        // Fast-path: N=4 (dual-touch gestures: pinch/rotate with X1, Y1, X2, Y2)
+        if (count == 4 && Vector128.IsHardwareAccelerated)
+        {
+            var vFriction = Vector128.Create(frictionCoefficient);
+            var vEps = Vector128.Create(VelocityEpsilon);
+            var vZero = Vector128<float>.Zero;
+
+            var v = Vector128.LoadUnsafe(ref vRef);
+            var damped = v * vFriction;
+            var vAbs = Vector128.Abs(damped);
+            var vMask = Vector128.GreaterThanOrEqual(vAbs, vEps);
+            damped = Vector128.ConditionalSelect(vMask, damped, vZero);
+            damped.StoreUnsafe(ref vRef);
+            return;
+        }
+
+        // General batch loop for large batches / simulators
         fixed (float* pVel = velocities)
         {
             int i = 0;
 
-            // Tier 1: ARM64 AdvSimd (Neon) 4-lane single-precision vectorization
-            if (AdvSimd.IsSupported && count >= 4)
+            if (Vector512.IsHardwareAccelerated && count >= 16)
             {
-                var vFriction = Vector128.Create(frictionCoefficient);
-                var vEps = Vector128.Create(VelocityEpsilon);
-                var vZero = Vector128<float>.Zero;
+                var vFriction = Vector512.Create(frictionCoefficient);
+                var vEps = Vector512.Create(VelocityEpsilon);
+                var vZero = Vector512<float>.Zero;
 
-                for (; i <= count - 4; i += 4)
+                for (; i <= count - 16; i += 16)
                 {
-                    var v = AdvSimd.LoadVector128(pVel + i);
-                    var damped = AdvSimd.Multiply(v, vFriction);
-                    var vAbs = AdvSimd.Abs(damped);
-                    var vMask = AdvSimd.CompareGreaterThanOrEqual(vAbs, vEps);
-                    damped = AdvSimd.BitwiseSelect(vMask, damped, vZero);
-                    AdvSimd.Store(pVel + i, damped);
+                    var v = Vector512.Load(pVel + i);
+                    var damped = v * vFriction;
+                    var vAbs = Vector512.Abs(damped);
+                    var vMask = Vector512.GreaterThanOrEqual(vAbs, vEps);
+                    damped = Vector512.ConditionalSelect(vMask, damped, vZero);
+                    Vector512.Store(damped, pVel + i);
                 }
             }
-            // Tier 2: x86/x64 AVX2 8-lane single-precision vectorization
-            else if (Avx2.IsSupported && count >= 8)
+
+            if (Vector256.IsHardwareAccelerated && i <= count - 8)
             {
                 var vFriction = Vector256.Create(frictionCoefficient);
                 var vEps = Vector256.Create(VelocityEpsilon);
@@ -58,11 +96,28 @@ public static unsafe class GestureKernels
                 for (; i <= count - 8; i += 8)
                 {
                     var v = Vector256.Load(pVel + i);
-                    var damped = Vector256.Multiply(v, vFriction);
+                    var damped = v * vFriction;
                     var vAbs = Vector256.Abs(damped);
                     var vMask = Vector256.GreaterThanOrEqual(vAbs, vEps);
                     damped = Vector256.ConditionalSelect(vMask, damped, vZero);
                     Vector256.Store(damped, pVel + i);
+                }
+            }
+
+            if (Vector128.IsHardwareAccelerated && i <= count - 4)
+            {
+                var vFriction = Vector128.Create(frictionCoefficient);
+                var vEps = Vector128.Create(VelocityEpsilon);
+                var vZero = Vector128<float>.Zero;
+
+                for (; i <= count - 4; i += 4)
+                {
+                    var v = Vector128.Load(pVel + i);
+                    var damped = v * vFriction;
+                    var vAbs = Vector128.Abs(damped);
+                    var vMask = Vector128.GreaterThanOrEqual(vAbs, vEps);
+                    damped = Vector128.ConditionalSelect(vMask, damped, vZero);
+                    Vector128.Store(damped, pVel + i);
                 }
             }
 
