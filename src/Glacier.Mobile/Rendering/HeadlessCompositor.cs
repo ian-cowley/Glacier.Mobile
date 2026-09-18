@@ -7,46 +7,57 @@ using SkiaSharp;
 
 /// <summary>
 /// Deterministic headless software compositor for CI test runners, snapshot verification, and benchmarks.
+/// Utilizes a HeadlessSwapchain to decouple rendering from desktop canvas.
 /// </summary>
 public sealed class HeadlessCompositor : ICompositor
 {
-    private readonly SKBitmap _bitmap;
-    private readonly SKCanvas _canvas;
+    private readonly HeadlessSwapchain _swapchain;
+    private IHardwareFrame? _currentFrame;
     private bool _disposed;
 
-    public int Width { get; }
-    public int Height { get; }
+    public IMobileSwapchain? Swapchain => _swapchain;
+    public int Width => _swapchain.Width;
+    public int Height => _swapchain.Height;
     public long RenderedFrameCount { get; private set; }
 
     public HeadlessCompositor(int width = 393, int height = 852)
     {
-        Width = width;
-        Height = height;
-        _bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        _canvas = new SKCanvas(_bitmap);
+        _swapchain = new HeadlessSwapchain(width, height);
+    }
+
+    public HeadlessCompositor(HeadlessSwapchain swapchain)
+    {
+        _swapchain = swapchain ?? throw new ArgumentNullException(nameof(swapchain));
     }
 
     public void BeginFrame()
     {
-        _canvas.Clear(SKColors.Transparent);
+        _currentFrame = _swapchain.AcquireNextFrame();
+        _currentFrame.Canvas.Clear(SKColors.Transparent);
     }
 
     public void RenderTree(MobileView root, float width, float height)
     {
+        if (_currentFrame == null) return;
         root.Measure(width, height);
         root.Arrange(0f, 0f, width, height);
-        root.Render(_canvas);
+        root.Render(_currentFrame.Canvas);
         RenderedFrameCount++;
     }
 
     public void EndFrame()
     {
-        _canvas.Flush();
+        if (_currentFrame != null)
+        {
+            _swapchain.Present(_currentFrame);
+            _currentFrame.Dispose();
+            _currentFrame = null;
+        }
     }
 
     public byte[] EncodeToPng()
     {
-        using var image = SKImage.FromBitmap(_bitmap);
+        using var image = SKImage.FromBitmap(_swapchain.GetCurrentFrontBitmap());
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         return data.ToArray();
     }
@@ -55,8 +66,9 @@ public sealed class HeadlessCompositor : ICompositor
     {
         if (!_disposed)
         {
-            _canvas.Dispose();
-            _bitmap.Dispose();
+            _currentFrame?.Dispose();
+            _currentFrame = null;
+            _swapchain.Dispose();
             _disposed = true;
         }
     }

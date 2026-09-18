@@ -8,6 +8,7 @@ using Glacier.Mobile.UI;
 
 /// <summary>
 /// Root mobile application orchestrator managing lifecycle, 120Hz frame pump, and touch dispatch.
+/// Integrates a lock-free SPSC touch ring buffer and a pointer capture table for high-frequency input routing.
 /// </summary>
 public abstract class MobileApplication : IDisposable
 {
@@ -17,6 +18,8 @@ public abstract class MobileApplication : IDisposable
     public DisplayMetrics Metrics { get; }
     public ICompositor Compositor { get; private set; }
     public TouchDispatcher TouchDispatcher { get; } = new();
+    public PointerCaptureTable PointerCaptures { get; } = new();
+    public TouchRingBuffer TouchQueue { get; } = new(1024);
     public MobileView? RootView { get; protected set; }
     public bool IsRunning => _isRunning;
     public long FrameCount { get; private set; }
@@ -48,7 +51,42 @@ public abstract class MobileApplication : IDisposable
     }
 
     /// <summary>
-    /// Dispatches a high-frequency native touch event to the visual tree and gesture recognizers.
+    /// Asynchronously enqueues a touch snapshot into the lock-free SPSC ring buffer.
+    /// </summary>
+    public bool EnqueueTouch(in TouchSnapshot snapshot)
+    {
+        return TouchQueue.TryEnqueue(snapshot);
+    }
+
+    /// <summary>
+    /// Asynchronously enqueues a touch event into the lock-free SPSC ring buffer.
+    /// </summary>
+    public bool EnqueueTouch(int pointerId, float x, float y, TouchPhase phase)
+    {
+        return TouchQueue.TryEnqueue(new TouchSnapshot(Stopwatch.GetTimestamp(), pointerId, x, y, phase));
+    }
+
+    /// <summary>
+    /// Drains and processes all queued touch events from the lock-free SPSC ring buffer.
+    /// </summary>
+    public void ProcessQueuedTouches()
+    {
+        Span<TouchSnapshot> batch = stackalloc TouchSnapshot[64];
+        int read;
+        while ((read = TouchQueue.Drain(batch)) > 0)
+        {
+            for (int i = 0; i < read; i++)
+            {
+                ref readonly var s = ref batch[i];
+                var evt = new TouchEvent(s.Timestamp, s.PointerId, s.X, s.Y, s.Phase);
+                DispatchTouch(in evt);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Dispatches a high-frequency native touch event to the visual tree and gesture recognizers,
+    /// binding pointers to views via the pointer capture table across gesture lifecycles.
     /// </summary>
     public void DispatchTouch(in TouchEvent touch)
     {
@@ -56,8 +94,26 @@ public abstract class MobileApplication : IDisposable
 
         if (RootView != null)
         {
-            var hit = RootView.HitTest(touch.X, touch.Y);
-            hit?.ProcessTouch(in touch);
+            MobileView? target = null;
+            if (touch.Phase == TouchPhase.Began)
+            {
+                target = RootView.HitTest(touch.X, touch.Y);
+                if (target != null)
+                {
+                    PointerCaptures.Capture(touch.PointerId, target);
+                }
+            }
+            else
+            {
+                target = PointerCaptures.GetCaptured(touch.PointerId) ?? RootView.HitTest(touch.X, touch.Y);
+            }
+
+            target?.ProcessTouch(in touch);
+
+            if (touch.Phase == TouchPhase.Ended || touch.Phase == TouchPhase.Cancelled)
+            {
+                PointerCaptures.Release(touch.PointerId);
+            }
         }
     }
 
@@ -66,6 +122,7 @@ public abstract class MobileApplication : IDisposable
     /// </summary>
     public void Step(float dt)
     {
+        ProcessQueuedTouches();
         FrameCount++;
         RenderFrame();
     }
@@ -105,6 +162,8 @@ public abstract class MobileApplication : IDisposable
         if (!_disposed)
         {
             Stop();
+            PointerCaptures.Clear();
+            TouchQueue.Clear();
             Compositor.Dispose();
             _disposed = true;
         }

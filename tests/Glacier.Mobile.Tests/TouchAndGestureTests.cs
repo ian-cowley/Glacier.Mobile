@@ -158,4 +158,82 @@ public class TouchAndGestureTests
 
         Assert.True(tapped);
     }
+
+    [Fact]
+    public void TouchSnapshot_And_TouchEvent_Natural24ByteAlignment()
+    {
+        Assert.Equal(24, System.Runtime.CompilerServices.Unsafe.SizeOf<TouchSnapshot>());
+        Assert.Equal(24, System.Runtime.InteropServices.Marshal.SizeOf<TouchSnapshot>());
+        Assert.Equal(24, System.Runtime.CompilerServices.Unsafe.SizeOf<TouchEvent>());
+    }
+
+    [Fact]
+    public void TouchRingBuffer_EnqueuesAndDequeuesInOrder()
+    {
+        var ring = new TouchRingBuffer(8);
+        Assert.Equal(8, ring.Capacity);
+        Assert.Equal(0, ring.Count);
+
+        for (int i = 0; i < 8; i++)
+        {
+            var snap = new TouchSnapshot(1000 + i, i, 10f * i, 20f * i, TouchPhase.Moved);
+            Assert.True(ring.TryEnqueue(snap));
+        }
+
+        Assert.Equal(8, ring.Count);
+        // Buffer full
+        Assert.False(ring.TryEnqueue(new TouchSnapshot(9999, 99, 0, 0, TouchPhase.Ended)));
+
+        Span<TouchSnapshot> drained = stackalloc TouchSnapshot[16];
+        int count = ring.Drain(drained);
+        Assert.Equal(8, count);
+        Assert.Equal(0, ring.Count);
+
+        for (int i = 0; i < 8; i++)
+        {
+            Assert.Equal(i, drained[i].PointerId);
+            Assert.Equal(1000 + i, drained[i].Timestamp);
+        }
+    }
+
+    [Fact]
+    public void PointerCaptureTable_TracksAndReleasesPointers()
+    {
+        var table = new PointerCaptureTable();
+        var view = new UI.Controls.Button();
+
+        table.Capture(0, view);
+        Assert.Same(view, table.GetCaptured(0));
+        Assert.Null(table.GetCaptured(1));
+
+        table.Release(0);
+        Assert.Null(table.GetCaptured(0));
+    }
+
+    [Fact]
+    public void HeadlessSwapchain_AcquiresAndPresentsFrames()
+    {
+        using var swapchain = new Rendering.HeadlessSwapchain(100, 200, 2.0f);
+        Assert.Equal(100, swapchain.Width);
+        Assert.Equal(200, swapchain.Height);
+        Assert.Equal(2.0f, swapchain.DensityScale);
+
+        using (var frame1 = swapchain.AcquireNextFrame())
+        {
+            Assert.NotNull(frame1.Canvas);
+            Assert.Equal(1, frame1.FrameIndex);
+            swapchain.Present(frame1);
+        }
+
+        using (var frame2 = swapchain.AcquireNextFrame())
+        {
+            Assert.NotNull(frame2.Canvas);
+            Assert.Equal(2, frame2.FrameIndex);
+            swapchain.Present(frame2);
+        }
+
+        swapchain.Resize(300, 400, 3.0f);
+        Assert.Equal(300, swapchain.Width);
+        Assert.Equal(400, swapchain.Height);
+    }
 }
