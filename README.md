@@ -148,6 +148,15 @@ public class AppShell : MobileApplication
 
 ---
 
+## 🆕 What's New in v1.0.1
+
+- **`IMobileSwapchain` HAL** — pluggable headless/native compositor backends enabling unit-testable rendering pipelines and headless CI validation.
+- **Lock-free SPSC touch event ring buffer** — single-producer single-consumer design delivers touch events from the OS callback to the gesture recognizer with zero mutex contention.
+- **`PointerCaptureTable`** — per-pointer capture state enables accurate multi-touch gesture tracking across complex interaction sequences.
+- **20 tests** passing (100 %).
+
+---
+
 ## Credits
 
 Developed by Ian Cowley and Antigravity (Google DeepMind).
