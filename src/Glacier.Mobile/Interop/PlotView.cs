@@ -62,16 +62,31 @@ public sealed class PlotView : MobileView
         ActualHeight = h;
     }
 
-    public override void Render(SKCanvas canvas)
+    public override unsafe void Render(SKCanvas canvas)
     {
         if (!IsVisible) return;
         base.Render(canvas);
+
+        int w = (int)MathF.Max(1f, ActualWidth);
+        int h = (int)MathF.Max(1f, ActualHeight);
 
         canvas.Save();
         canvas.ClipRect(new SKRect(X, Y, X + ActualWidth, Y + ActualHeight));
         canvas.Translate(X, Y);
 
-        Figure.Render(canvas, (int)ActualWidth, (int)ActualHeight);
+        using var fb = new Glacier.Graphics.Raster.LinearFramebuffer(w, h);
+        using var figureCanvas = new Glacier.Graphics.CpuGraphicsCanvas(fb);
+        Figure.Render(figureCanvas, w, h);
+
+        fixed (byte* p = fb.AsByteSpan())
+        {
+            var info = new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Premul);
+            using var image = SKImage.FromPixels(info, (IntPtr)p, fb.Stride);
+            if (image != null)
+            {
+                canvas.DrawImage(image, 0, 0);
+            }
+        }
 
         canvas.Restore();
     }
