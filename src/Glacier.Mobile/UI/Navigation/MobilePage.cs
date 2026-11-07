@@ -9,8 +9,18 @@ using SkiaSharp;
 /// </summary>
 public class MobilePage : MobileView
 {
+    private MobileView? _content;
     public string Title { get; set; } = string.Empty;
-    public MobileView? Content { get; set; }
+    public MobileView? Content
+    {
+        get => _content;
+        set
+        {
+            if (_content != null) _content.Parent = null;
+            _content = value;
+            if (_content != null) _content.Parent = this;
+        }
+    }
 
     public MobilePage(string title = "")
     {
@@ -29,6 +39,14 @@ public class MobilePage : MobileView
     {
         base.Arrange(x, y, width, height);
         Content?.Arrange(X, Y, ActualWidth, ActualHeight);
+    }
+
+    public override void Update(float dt)
+    {
+        if (IsVisible)
+        {
+            Content?.Update(dt);
+        }
     }
 
     public override void Render(SKCanvas canvas)

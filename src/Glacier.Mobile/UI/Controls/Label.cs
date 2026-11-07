@@ -15,6 +15,15 @@ public enum TextAlignment : byte
 /// </summary>
 public class Label : MobileView
 {
+    internal static readonly SKTypeface RegularTypeface =
+        SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
+
+    internal static readonly SKTypeface SemiBoldTypeface =
+        SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.SemiBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
+
+    internal static readonly SKTypeface BoldTypeface =
+        SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
+
     private string _text;
     public string Text
     {
@@ -36,7 +45,7 @@ public class Label : MobileView
     {
         using var paint = new SKPaint
         {
-            Typeface = SKTypeface.FromFamilyName("Arial", IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright),
+            Typeface = IsBold ? BoldTypeface : RegularTypeface,
             TextSize = FontSize,
             IsAntialias = true
         };
@@ -57,7 +66,7 @@ public class Label : MobileView
 
         using var paint = new SKPaint
         {
-            Typeface = SKTypeface.FromFamilyName("Arial", IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright),
+            Typeface = IsBold ? BoldTypeface : RegularTypeface,
             TextSize = FontSize,
             Color = TextColor.ToSKColor(),
             IsAntialias = true

@@ -83,4 +83,54 @@ public class ApplicationLifecycleTests
 
         Assert.True(buttonClicked);
     }
+
+    private sealed class ScrollPhysicsTestApp : MobileApplication
+    {
+        public ScrollView Scroll { get; private set; } = null!;
+
+        protected override MobileView Build()
+        {
+            var col = new Column(spacing: 0f);
+            for (int i = 0; i < 20; i++)
+            {
+                col.Add(new Label($"Row {i}") { Width = 350f, Height = 100f });
+            }
+
+            Scroll = new ScrollView { Content = col };
+            return new NavigationStack
+            {
+                new Screen("ScrollPage") { Content = Scroll }
+            };
+        }
+    }
+
+    [Fact]
+    public void MobileApplication_Step_TicksScrollViewInertialPhysicsAndBubblesFromLabels()
+    {
+        using var app = new ScrollPhysicsTestApp();
+        app.Start();
+        app.Step(1f / 120f);
+
+        Assert.True(app.Scroll.MaxScrollY > 500f);
+
+        long t0 = 1_000_000L;
+        long dtTicks = System.Diagnostics.Stopwatch.Frequency / 120; // ~8.33ms
+
+        // Drag upward on a child Label inside ScrollView: touches bubble up to ScrollView
+        app.DispatchTouch(new TouchEvent(t0, 0, 100f, 400f, TouchPhase.Began));
+        app.DispatchTouch(new TouchEvent(t0 + dtTicks, 0, 100f, 350f, TouchPhase.Moved));
+        app.DispatchTouch(new TouchEvent(t0 + 2 * dtTicks, 0, 100f, 300f, TouchPhase.Moved));
+        app.DispatchTouch(new TouchEvent(t0 + 3 * dtTicks, 0, 100f, 300f, TouchPhase.Ended));
+
+        float offsetAtRelease = app.Scroll.ScrollOffsetY;
+        Assert.Equal(100f, offsetAtRelease, 1);
+
+        // Step frames: kinetic inertia should continue scrolling past 100f and decay cleanly
+        for (int i = 0; i < 10; i++)
+        {
+            app.Step(1f / 120f);
+        }
+
+        Assert.True(app.Scroll.ScrollOffsetY > offsetAtRelease);
+    }
 }

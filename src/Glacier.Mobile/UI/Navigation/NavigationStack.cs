@@ -52,6 +52,14 @@ public sealed class NavigationStack : MobileView, IEnumerable<MobilePage>
         CurrentPage?.Arrange(X, Y, ActualWidth, ActualHeight);
     }
 
+    public override void Update(float dt)
+    {
+        if (IsVisible)
+        {
+            CurrentPage?.Update(dt);
+        }
+    }
+
     public override void Render(SKCanvas canvas)
     {
         if (!IsVisible) return;

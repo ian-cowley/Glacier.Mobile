@@ -119,13 +119,19 @@ public class TouchAndGestureTests
         Assert.Equal(GestureState.Began, pinch.State);
         Assert.Equal(1.0f, pinch.Scale);
 
-        // Pointer 1 moves to (300, 100) -> distance = 200 -> Scale = 2.0
+        // Pointer 1 moves to (300, 100) -> distance = 200 -> Scale = 2.0, DeltaScale = 2.0
         pinch.ProcessTouch(new TouchEvent(1, 300f, 100f, TouchPhase.Moved));
         Assert.Equal(GestureState.Changed, pinch.State);
         Assert.Equal(2.0f, pinch.Scale, 2);
+        Assert.Equal(2.0f, pinch.DeltaScale, 2);
+
+        // Pointer 1 moves to (400, 100) -> distance = 300 -> Scale = 3.0, DeltaScale = 3.0 / 2.0 = 1.5
+        pinch.ProcessTouch(new TouchEvent(1, 400f, 100f, TouchPhase.Moved));
+        Assert.Equal(3.0f, pinch.Scale, 2);
+        Assert.Equal(1.5f, pinch.DeltaScale, 2);
 
         // Pointer 1 ends
-        pinch.ProcessTouch(new TouchEvent(1, 300f, 100f, TouchPhase.Ended));
+        pinch.ProcessTouch(new TouchEvent(1, 400f, 100f, TouchPhase.Ended));
         Assert.Equal(GestureState.Ended, pinch.State);
     }
 

@@ -6,13 +6,15 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>preview</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <TieredPGO>true</TieredPGO>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <NoWarn>$(NoWarn);CS1591;CS8981</NoWarn>
 
     <!-- NuGet Package Properties -->
     <PackageId>Glacier.Mobile</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>Ian Cowley</Authors>
     <Company>Glacier High-Performance Ecosystem</Company>
     <Description>High-performance cross-platform mobile application runtime and declarative reactive UI engine for .NET 10 Native AOT. Zero-allocation touch pipeline, 120Hz GPU composition via SkiaSharp/Vulkan/Metal, and sub-200ms cold startup. Native C# alternative to Python Kivy.</Description>
@@ -31,7 +33,7 @@
   <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" />
-    <PackageReference Include="Glacier.Polaris" Version="1.0.20" />
-    <PackageReference Include="Glacier.Plot" Version="1.0.5" />
+    <PackageReference Include="Glacier.Polaris" Version="1.1.0" />
+    <PackageReference Include="Glacier.Plot" Version="1.1.0" />
   </ItemGroup>
 </Project>

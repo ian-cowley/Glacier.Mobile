@@ -33,7 +33,7 @@ public sealed class Button : MobileView
     {
         using var paint = new SKPaint
         {
-            Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.SemiBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright),
+            Typeface = Label.SemiBoldTypeface,
             TextSize = FontSize,
             IsAntialias = true
         };
@@ -58,7 +58,7 @@ public sealed class Button : MobileView
             IsAntialias = true
         };
 
-        var rect = new SKRoundRect(new SKRect(X, Y, X + ActualWidth, Y + ActualHeight), CornerRadius);
+        using var rect = new SKRoundRect(new SKRect(X, Y, X + ActualWidth, Y + ActualHeight), CornerRadius);
         canvas.DrawRoundRect(rect, bgPaint);
 
         // Draw button label
@@ -66,7 +66,7 @@ public sealed class Button : MobileView
         {
             using var textPaint = new SKPaint
             {
-                Typeface = SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.SemiBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright),
+                Typeface = Label.SemiBoldTypeface,
                 TextSize = FontSize,
                 Color = TextColor.ToSKColor(),
                 IsAntialias = true

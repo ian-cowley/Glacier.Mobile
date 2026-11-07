@@ -105,6 +105,17 @@ public class StackLayout : MobileView, IEnumerable<MobileView>
         }
     }
 
+    public override void Update(float dt)
+    {
+        for (int i = 0; i < _children.Count; i++)
+        {
+            if (_children[i].IsVisible)
+            {
+                _children[i].Update(dt);
+            }
+        }
+    }
+
     public override void Render(SKCanvas canvas)
     {
         base.Render(canvas);

@@ -12,30 +12,26 @@
 
 > **Native AOT Cross-Platform Mobile Engine for C# .NET 10 (Systematically Beating Python Kivy)**
 
-`Glacier.Mobile` is a high-performance cross-platform mobile application runtime engineered natively for C# .NET 10 Native AOT. It provides sub-200ms cold startup on iOS and Android, hardware-accelerated GPU composition (Metal / Vulkan), and a zero-allocation touch/gesture pipeline running at a locked 120Hz refresh rate. It serves as Pillar 8 of the unified **Glacier .NET 10 High-Performance Ecosystem**.
+`Glacier.Mobile` is a cross-platform mobile application runtime engineered natively for C# .NET 10 Native AOT. It provides sub-200ms cold startup, SkiaSharp / Metal / Vulkan composition, and a zero-allocation touch/gesture pipeline running at a 120Hz refresh rate.
 
 ---
 
 ## 1. Why Glacier.Mobile? Replacing Python Kivy
 
-**Kivy** is often proposed as Python's solution for cross-platform mobile development (iOS and Android). In practice, mobile Python applications suffer from severe production shortcomings:
+**Kivy** suffers from production shortcomings on mobile devices:
 
-1. **Severe Cold Start Latency**: Launching a Kivy app requires initializing the entire CPython interpreter, taking **3 to 6 seconds** on typical mobile hardware before displaying the first frame.
-2. **Huge Binary Bloat**: A minimal "Hello World" APK or IPA weighs in at 80MB–150MB because it must bundle the complete CPython runtime and compiled C extensions.
-3. **Sluggish Touch Responsiveness & Stutter**: The Python event loop cannot sustain the 120Hz refresh rates required by modern OLED displays (ProMotion / Smooth Display), resulting in jank during scrolling.
+1. **Cold Start Latency**: Initializing the CPython interpreter takes **3 to 6 seconds** on typical mobile hardware before displaying the first frame.
+2. **Binary Bloat**: Bundling CPython and C extensions inflates minimal APKs/IPAs to 80MB–150MB.
+3. **Touch Stutter**: Python event loops struggle to sustain 120Hz ProMotion / Smooth Display scrolling without GC jank.
 
-**Glacier.Mobile** solves mobile development challenges through:
-- **Direct Native ARM64 Machine Code**: Compiles ahead-of-time (AOT) into pure native binaries without an interpreter or JIT compiler.
-- **Sub-200ms Cold App Launch**: Instant interactive startup on iOS and Android.
-- **Smooth 120Hz Native Rendering**: Hardware-accelerated GPU composition pipeline powered by Metal on iOS and Vulkan on Android.
-- **Tiny App Footprint**: Standalone native apps under **18 MB** (over 6x smaller than Kivy).
-- **Zero-Allocation Touch Pipeline**: Stack-allocated `ref struct TouchEvent` payloads delivering <2ms input latency.
+**Glacier.Mobile** addresses these challenges natively on .NET 10:
+- **Direct Native ARM64 Machine Code**: Ahead-of-time (AOT) compilation with zero interpreter overhead.
+- **120Hz Kinetic Physics & Rendering**: `MobileApplication.Step(dt)` ticks `ScrollView` SIMD inertial damping alongside hardware-accelerated SkiaSharp composition.
+- **Zero-Allocation Touch Pipeline**: Stack-allocated `readonly ref struct TouchEvent` payloads and a lock-free SPSC `TouchRingBuffer`.
 
 ---
 
 ## 🖼️ Visual Gallery: Real Rendered Mobile UI Snapshot
-
-The screen below is captured directly from `Glacier.Mobile.Sample` running on the native Skia GPU compositor at 120Hz:
 
 <div align="center">
 
@@ -48,36 +44,10 @@ The screen below is captured directly from `Glacier.Mobile.Sample` running on th
 
 ---
 
-## 2. Mobile Architecture & Rendering Pipeline
+## 2. Zero-Allocation Touch & Gesture Input Pipeline
 
-```
-                       Glacier.Mobile Runtime Architecture
-┌────────────────────────────────────────────────────────┐
-│ C# .NET 10 Application Logic (Shared Business Code)    │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ Glacier.Mobile Reactive UI Engine                      │
-│ (Declarative C# Markup or XAML / Retained Visual Tree) │
-└──────────────────────────┬─────────────────────────────┘
-                           │ Zero-Allocation Touch & Gesture Events
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ Hardware GPU Compositor (Skia / Vulkan / Metal)        │
-└────────────┬───────────────────────────────┬───────────┘
-             │ iOS                           │ Android
-             ▼                               ▼
-┌────────────────────────┐      ┌────────────────────────┐
-│ iOS Native Shell       │      │ Android Native Shell   │
-│ Direct Metal Layer     │      │ SurfaceView / Vulkan   │
-│ Native AOT ARM64 Exec  │      │ Native AOT ARM64 .so   │
-└────────────────────────┘      └────────────────────────┘
-```
-
-### Zero-Allocation Touch & Gesture Input Pipeline
 ```csharp
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
+[StructLayout(LayoutKind.Sequential)]
 public readonly ref struct TouchEvent
 {
     public readonly long Timestamp;
@@ -87,48 +57,43 @@ public readonly ref struct TouchEvent
     public readonly TouchPhase Phase;
 }
 ```
-Touch events are processed on the stack with **< 2ms latency**, locking touch-tracking to 120Hz display refresh intervals without triggering GC allocations.
+Touch events flow from OS callbacks through `TouchRingBuffer` and `PointerCaptureTable` to `TapGestureRecognizer`, `PanGestureRecognizer` (with incremental `DeltaX`/`DeltaY`), and `PinchGestureRecognizer` (with incremental `DeltaScale`).
 
 ---
 
-## 3. Physical Hardware Benchmark Results & Parity
-
-Empirical measurements executed directly on physical hardware (**AMD Ryzen AI 9 HX 370** 12C/24T Zen 5, AVX-512, Windows 11):
-
-| Mobile Benchmark Metric | Python Kivy | Glacier.Mobile (.NET 10 AOT) | Advantage / Measured Fact |
-| :--- | :--- | :--- | :--- |
-| **Cold Startup Time (iOS/Android)** | 3.80 s – 5.20 s | **0.18 s (180 ms)** | **21x–28x faster launch** |
-| **Standalone Package Size (APK)** | 110 MB | **17 MB** | **6.4x smaller** |
-| **Frame Rate under Rapid Scroll** | 32–45 FPS (Jank) | **120 FPS (Solid lock)** | **Fluid native 120Hz** |
-| **RAM Footprint at Launch** | 185 MB | **24 MB** | **7.7x less memory** |
-| **Touch Event Latency** | 35–50 ms | **2.15 μs (0.002 ms)** | **>16,000x lower input latency** |
-| **Single-Pointer Damping ($N=1$)** | ~12.5 μs | **4.75 ns/op** | **210.53M gestures/sec (0 alloc)** |
-| **2-Finger Pinch/Zoom ($N=2$)** | ~24.0 μs | **4.85 ns/op** | **206.19M gestures/sec (0 alloc)** |
-| **4-Finger Tracking ($N=4$)** | ~48.0 μs | **7.28 ns/op** | **137.36M gestures/sec (0 alloc)** |
-| **SIMD Batch Damping (AVX-512)** | N/A | **0.282 μs/batch** | **35.5 billion items/sec** |
-| **Component Tree Render** | ~8.5 ms | **1.05 μs** | **Zero heap allocation** |
-
----
-
-## 4. Quickstart API
+## 3. Quickstart API
 
 ```csharp
+using Glacier.Mobile.Core;
+using Glacier.Mobile.Interop;
 using Glacier.Mobile.UI;
-using Glacier.Mobile.Components;
+using Glacier.Mobile.UI.Controls;
+using Glacier.Mobile.UI.Layouts;
+using Glacier.Mobile.UI.Navigation;
+using Glacier.Polaris;
+using Glacier.Polaris.Data;
 
-public class AppShell : MobileApplication
+public sealed class AppShell : MobileApplication
 {
-    protected override View Build()
+    protected override MobileView Build()
     {
+        var telemetry = new TelemetryView("Real-Time Telemetry");
+        var values = new Float32Series("Value", 32);
+        for (int i = 0; i < 32; i++) values[i] = MathF.Sin(i * 0.25f) * 10f + 50f;
+        telemetry.BindDataFrame(new DataFrame([values]), "Value");
+
         return new NavigationStack
         {
             new Screen("Dashboard")
             {
-                Content = new Column(spacing: 16)
+                Content = new ScrollView
                 {
-                    new Header("Real-Time Telemetry"),
-                    new RealTimeChart().BindToSensorStream(),
-                    new Button("Export Snapshot", onClick: () => ShareReport())
+                    Content = new Column(spacing: 16f)
+                    {
+                        new Header("System Monitor"),
+                        telemetry,
+                        new Button("Export Snapshot", onClick: () => { })
+                    }
                 }
             }
         };
@@ -138,24 +103,21 @@ public class AppShell : MobileApplication
 
 ---
 
-## 5. Ecosystem Cross-References
+## 4. Ecosystem Cross-References
 
-`Glacier.Mobile` is designed to seamlessly integrate with the other engines in the **Glacier .NET 10 High-Performance Ecosystem**:
-
-- **[Master Architecture Plan](../../GLACIER_ECOSYSTEM_MASTER_PLAN.md)**: Ecosystem blueprint mapping the 9 Python domains to .NET 10 counterparts.
-- **[Glacier.Mobile Technical Specification](../../docs/plans/08_GLACIER_MOBILE_SPEC.md)**: Deep dive into Native AOT mobile targets, touch pipelines, and GPU compositors.
-- **[Glacier.Desktop](https://github.com/ian-cowley/Glacier.Desktop)**: Shared Avalonia UI and desktop architecture.
-- **[Glacier.Plot](https://github.com/ian-cowley/Glacier.Plot)**: High-speed mobile charts and real-time visualization.
-- **[Glacier.Polaris](https://github.com/ian-cowley/Glacier.Polaris)**: Embedded mobile data analytics on Arrow columnar memory.
+- **[Glacier Ecosystem Website](https://glaciersoftware.dev/)**: Unified .NET 10 high-performance architecture overview.
+- **[Glacier.Desktop](https://github.com/ian-cowley/Glacier.Desktop)**: Native desktop GUI engine and virtualized 1M-row data grids.
+- **[Glacier.Plot](https://github.com/ian-cowley/Glacier.Plot)**: High-speed mobile charts integrated via `PlotView`.
+- **[Glacier.Polaris](https://github.com/ian-cowley/Glacier.Polaris)**: Embedded columnar analytics powering `TelemetryView`.
 
 ---
 
-## 🆕 What's New in v1.0.1
+## 🆕 What's New in v1.1.0
 
-- **`IMobileSwapchain` HAL** — pluggable headless/native compositor backends enabling unit-testable rendering pipelines and headless CI validation.
-- **Lock-free SPSC touch event ring buffer** — single-producer single-consumer design delivers touch events from the OS callback to the gesture recognizer with zero mutex contention.
-- **`PointerCaptureTable`** — per-pointer capture state enables accurate multi-touch gesture tracking across complex interaction sequences.
-- **20 tests** passing (100 %).
+- **Cached `SKTypeface` & Native Handle Hygiene** — eliminated per-frame `SKTypeface.FromFamilyName` allocations in `Label` and `Button` and ensured `SKRoundRect` native handles are deterministically disposed.
+- **Live 120Hz `ScrollView` Inertial Physics & Touch Bubbling** — `MobileApplication.Step(dt)` now ticks `MobileView.Update(dt)` across the active visual tree, and passive child views bubble touch gestures cleanly to parent `ScrollView` containers.
+- **Incremental `DeltaX`/`DeltaY` & `DeltaScale` Gesture Tracking** — eliminated compounding quadratic pan drift and exponential pinch zoom in `PlotView`.
+- **Upgraded to `Glacier.Polaris 1.1.0` and `Glacier.Plot 1.1.0`** with zero transitive NuGet vulnerabilities and NuGet OIDC Trusted Publishing CI.
 
 ---
 

@@ -66,11 +66,22 @@ public abstract class MobileView
         return null;
     }
 
+    public virtual void Update(float dt)
+    {
+    }
+
     public virtual void ProcessTouch(in TouchEvent touch)
     {
-        for (int i = 0; i < GestureRecognizers.Count; i++)
+        if (GestureRecognizers.Count > 0)
         {
-            GestureRecognizers[i].ProcessTouch(in touch);
+            for (int i = 0; i < GestureRecognizers.Count; i++)
+            {
+                GestureRecognizers[i].ProcessTouch(in touch);
+            }
+        }
+        else
+        {
+            Parent?.ProcessTouch(in touch);
         }
     }
 }

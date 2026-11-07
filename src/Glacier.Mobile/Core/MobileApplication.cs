@@ -123,6 +123,10 @@ public abstract class MobileApplication : IDisposable
     public void Step(float dt)
     {
         ProcessQueuedTouches();
+        if (dt > 0f)
+        {
+            RootView?.Update(dt);
+        }
         FrameCount++;
         RenderFrame();
     }

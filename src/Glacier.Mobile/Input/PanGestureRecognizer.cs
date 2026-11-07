@@ -15,6 +15,8 @@ public sealed class PanGestureRecognizer : IGestureRecognizer
 
     public float TranslationX { get; private set; }
     public float TranslationY { get; private set; }
+    public float DeltaX { get; private set; }
+    public float DeltaY { get; private set; }
     public float VelocityX { get; private set; }
     public float VelocityY { get; private set; }
     public GestureState State { get; private set; } = GestureState.Possible;
@@ -34,6 +36,8 @@ public sealed class PanGestureRecognizer : IGestureRecognizer
                     _lastTouch = _startTouch;
                     TranslationX = 0f;
                     TranslationY = 0f;
+                    DeltaX = 0f;
+                    DeltaY = 0f;
                     VelocityX = 0f;
                     VelocityY = 0f;
                     State = GestureState.Began;
@@ -44,14 +48,16 @@ public sealed class PanGestureRecognizer : IGestureRecognizer
             case TouchPhase.Moved:
                 if (_hasActivePointer && touch.PointerId == _trackedPointerId)
                 {
+                    DeltaX = touch.X - _lastTouch.X;
+                    DeltaY = touch.Y - _lastTouch.Y;
                     TranslationX = touch.X - _startTouch.X;
                     TranslationY = touch.Y - _startTouch.Y;
 
                     double dtSeconds = (touch.Timestamp - _lastTouch.Timestamp) / (double)Stopwatch.Frequency;
                     if (dtSeconds > 0.0001)
                     {
-                        VelocityX = (float)((touch.X - _lastTouch.X) / dtSeconds);
-                        VelocityY = (float)((touch.Y - _lastTouch.Y) / dtSeconds);
+                        VelocityX = (float)(DeltaX / dtSeconds);
+                        VelocityY = (float)(DeltaY / dtSeconds);
                     }
 
                     _lastTouch = new TouchSnapshot(in touch);
@@ -63,6 +69,8 @@ public sealed class PanGestureRecognizer : IGestureRecognizer
             case TouchPhase.Ended:
                 if (_hasActivePointer && touch.PointerId == _trackedPointerId)
                 {
+                    DeltaX = touch.X - _lastTouch.X;
+                    DeltaY = touch.Y - _lastTouch.Y;
                     TranslationX = touch.X - _startTouch.X;
                     TranslationY = touch.Y - _startTouch.Y;
                     _hasActivePointer = false;
@@ -75,6 +83,8 @@ public sealed class PanGestureRecognizer : IGestureRecognizer
             case TouchPhase.Cancelled:
                 if (_hasActivePointer && touch.PointerId == _trackedPointerId)
                 {
+                    DeltaX = 0f;
+                    DeltaY = 0f;
                     _hasActivePointer = false;
                     _trackedPointerId = -1;
                     State = GestureState.Cancelled;
@@ -88,6 +98,8 @@ public sealed class PanGestureRecognizer : IGestureRecognizer
     {
         _hasActivePointer = false;
         _trackedPointerId = -1;
+        DeltaX = 0f;
+        DeltaY = 0f;
         State = GestureState.Possible;
     }
 }

@@ -36,9 +36,9 @@ public sealed class PlotView : MobileView
     {
         if (pan.State == GestureState.Changed)
         {
-            // Pan interaction: Shift axis limits
-            float dx = pan.TranslationX * 0.01f;
-            float dy = pan.TranslationY * 0.01f;
+            // Pan interaction: Shift axis limits incrementally (avoiding cumulative Translation drift)
+            float dx = -pan.DeltaX * 0.01f;
+            float dy = pan.DeltaY * 0.01f;
             Figure.XAxis.Pan(dx);
             Figure.YAxis.Pan(dy);
         }
@@ -46,11 +46,11 @@ public sealed class PlotView : MobileView
 
     private void OnPinch(PinchGestureRecognizer pinch)
     {
-        if (pinch.State == GestureState.Changed)
+        if (pinch.State == GestureState.Changed && MathF.Abs(pinch.DeltaScale - 1.0f) > 1e-5f)
         {
-            // Pinch interaction: Zoom axis limits
-            Figure.XAxis.Zoom(pinch.Scale);
-            Figure.YAxis.Zoom(pinch.Scale);
+            // Pinch interaction: Zoom axis limits incrementally using frame-to-frame DeltaScale
+            Figure.XAxis.Zoom(pinch.DeltaScale);
+            Figure.YAxis.Zoom(pinch.DeltaScale);
         }
     }
 

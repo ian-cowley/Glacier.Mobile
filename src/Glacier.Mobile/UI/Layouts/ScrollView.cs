@@ -13,7 +13,17 @@ public sealed class ScrollView : MobileView
     private float _scrollVelocityY;
     private float _scrollOffsetY;
 
-    public MobileView? Content { get; set; }
+    private MobileView? _content;
+    public MobileView? Content
+    {
+        get => _content;
+        set
+        {
+            if (_content != null) _content.Parent = null;
+            _content = value;
+            if (_content != null) _content.Parent = this;
+        }
+    }
     public float ScrollOffsetY => _scrollOffsetY;
     public float MaxScrollY { get; private set; }
     public float Friction { get; set; } = 0.92f; // Damping per 120Hz frame
@@ -27,15 +37,25 @@ public sealed class ScrollView : MobileView
 
     private void OnPanStateChanged(PanGestureRecognizer pan)
     {
-        if (pan.State == GestureState.Changed)
+        if (pan.State == GestureState.Began)
         {
-            _scrollOffsetY -= pan.VelocityY * 0.008f;
+            _scrollVelocityY = 0f;
+        }
+        else if (pan.State == GestureState.Changed)
+        {
+            _scrollOffsetY -= pan.DeltaY;
             ClampScroll();
         }
         else if (pan.State == GestureState.Ended)
         {
             _scrollVelocityY = -pan.VelocityY;
         }
+    }
+
+    public override void Update(float dt)
+    {
+        UpdatePhysics(dt);
+        Content?.Update(dt);
     }
 
     /// <summary>
