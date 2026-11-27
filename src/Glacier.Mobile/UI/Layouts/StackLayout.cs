@@ -78,7 +78,11 @@ public class StackLayout : MobileView, IEnumerable<MobileView>
 
     public override void Arrange(float x, float y, float width, float height)
     {
+        float measuredW = ActualWidth;
+        float measuredH = ActualHeight;
         base.Arrange(x, y, width, height);
+        if (float.IsNaN(Width) && measuredW > 0f) ActualWidth = measuredW;
+        if (float.IsNaN(Height) && measuredH > 0f) ActualHeight = measuredH;
 
         float curX = X + Padding.Left;
         float curY = Y + Padding.Top;

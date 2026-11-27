@@ -2,6 +2,7 @@ namespace Glacier.Mobile.Input;
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 /// <summary>
@@ -10,10 +11,17 @@ using System.Threading;
 /// </summary>
 public sealed class TouchRingBuffer
 {
+    [StructLayout(LayoutKind.Explicit, Size = 128)]
+    private struct PaddedLong
+    {
+        [FieldOffset(64)]
+        public long Value;
+    }
+
     private readonly TouchSnapshot[] _buffer;
     private readonly int _mask;
-    private long _head; // Producer write cursor
-    private long _tail; // Consumer read cursor
+    private PaddedLong _head; // Producer write cursor (cache-line isolated)
+    private PaddedLong _tail; // Consumer read cursor (cache-line isolated)
 
     public int Capacity => _buffer.Length;
 
@@ -21,8 +29,8 @@ public sealed class TouchRingBuffer
     {
         get
         {
-            long head = Volatile.Read(ref _head);
-            long tail = Volatile.Read(ref _tail);
+            long head = Volatile.Read(ref _head.Value);
+            long tail = Volatile.Read(ref _tail.Value);
             long diff = head - tail;
             return diff > 0 ? (int)diff : 0;
         }
@@ -41,8 +49,8 @@ public sealed class TouchRingBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryEnqueue(in TouchSnapshot snapshot)
     {
-        long head = Volatile.Read(ref _head);
-        long tail = Volatile.Read(ref _tail);
+        long head = Volatile.Read(ref _head.Value);
+        long tail = Volatile.Read(ref _tail.Value);
 
         if (head - tail >= _buffer.Length)
         {
@@ -50,15 +58,15 @@ public sealed class TouchRingBuffer
         }
 
         _buffer[head & _mask] = snapshot;
-        Volatile.Write(ref _head, head + 1);
+        Volatile.Write(ref _head.Value, head + 1);
         return true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryDequeue(out TouchSnapshot snapshot)
     {
-        long tail = Volatile.Read(ref _tail);
-        long head = Volatile.Read(ref _head);
+        long tail = Volatile.Read(ref _tail.Value);
+        long head = Volatile.Read(ref _head.Value);
 
         if (tail >= head)
         {
@@ -67,7 +75,7 @@ public sealed class TouchRingBuffer
         }
 
         snapshot = _buffer[tail & _mask];
-        Volatile.Write(ref _tail, tail + 1);
+        Volatile.Write(ref _tail.Value, tail + 1);
         return true;
     }
 
@@ -83,7 +91,7 @@ public sealed class TouchRingBuffer
 
     public void Clear()
     {
-        long head = Volatile.Read(ref _head);
-        Volatile.Write(ref _tail, head);
+        long head = Volatile.Read(ref _head.Value);
+        Volatile.Write(ref _tail.Value, head);
     }
 }

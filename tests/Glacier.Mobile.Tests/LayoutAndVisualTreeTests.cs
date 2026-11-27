@@ -90,4 +90,18 @@ public class LayoutAndVisualTreeTests
         Assert.Equal(1, nav.Depth);
         Assert.Same(page1, nav.CurrentPage);
     }
+
+    [Fact]
+    public void MobileView_Arrange_UsesParentBoundsWhenNaN_AndExplicitWhenSet()
+    {
+        var autoSized = new Label("Auto") { Margin = new Thickness(5f) };
+        autoSized.Arrange(0f, 0f, 200f, 80f);
+        Assert.Equal(190f, autoSized.ActualWidth);
+        Assert.Equal(70f, autoSized.ActualHeight);
+
+        var fixedSized = new Label("Fixed") { Width = 120f, Height = 40f, Margin = new Thickness(5f) };
+        fixedSized.Arrange(0f, 0f, 200f, 80f);
+        Assert.Equal(120f, fixedSized.ActualWidth);
+        Assert.Equal(40f, fixedSized.ActualHeight);
+    }
 }

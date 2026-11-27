@@ -39,10 +39,8 @@ public abstract class MobileView
     {
         X = x + Margin.Left;
         Y = y + Margin.Top;
-        if (!float.IsNaN(Width))
-            ActualWidth = MathF.Max(0f, width - Margin.Horizontal);
-        if (!float.IsNaN(Height))
-            ActualHeight = MathF.Max(0f, height - Margin.Vertical);
+        ActualWidth = !float.IsNaN(Width) ? MathF.Max(0f, Width) : MathF.Max(0f, width - Margin.Horizontal);
+        ActualHeight = !float.IsNaN(Height) ? MathF.Max(0f, Height) : MathF.Max(0f, height - Margin.Vertical);
     }
 
     public virtual void Render(SKCanvas canvas)
