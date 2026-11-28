@@ -75,18 +75,41 @@ public sealed class PinchGestureRecognizer : IGestureRecognizer
 
             case TouchPhase.Ended:
             case TouchPhase.Cancelled:
-                if ((_hasTouch0 && touch.PointerId == _touch0.PointerId) || (_hasTouch1 && touch.PointerId == _touch1.PointerId))
                 {
-                    if (State == GestureState.Began || State == GestureState.Changed)
+                    bool isTouch0 = _hasTouch0 && touch.PointerId == _touch0.PointerId;
+                    bool isTouch1 = _hasTouch1 && touch.PointerId == _touch1.PointerId;
+                    if (isTouch0 || isTouch1)
                     {
-                        DeltaScale = 1.0f;
-                        State = touch.Phase == TouchPhase.Ended ? GestureState.Ended : GestureState.Cancelled;
-                        StateChanged?.Invoke(this);
+                        if (State == GestureState.Began || State == GestureState.Changed)
+                        {
+                            DeltaScale = 1.0f;
+                            State = touch.Phase == TouchPhase.Ended ? GestureState.Ended : GestureState.Cancelled;
+                            StateChanged?.Invoke(this);
+                        }
+
+                        if (isTouch0)
+                        {
+                            if (_hasTouch1)
+                            {
+                                _touch0 = _touch1;
+                                _touch1 = default;
+                                _hasTouch1 = false;
+                            }
+                            else
+                            {
+                                _touch0 = default;
+                                _hasTouch0 = false;
+                            }
+                        }
+                        else
+                        {
+                            _touch1 = default;
+                            _hasTouch1 = false;
+                        }
+
+                        _initialDistance = 0f;
+                        _previousScale = 1.0f;
                     }
-                    _hasTouch0 = false;
-                    _hasTouch1 = false;
-                    _initialDistance = 0f;
-                    _previousScale = 1.0f;
                 }
                 break;
         }

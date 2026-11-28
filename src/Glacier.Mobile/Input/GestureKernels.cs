@@ -3,12 +3,10 @@ namespace Glacier.Mobile.Input;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
-using System.Runtime.Intrinsics.Arm;
-using System.Runtime.Intrinsics.X86;
 
 /// <summary>
 /// Hardware-accelerated gesture physics and touch velocity kernels.
-/// Optimized for ARM64 AdvSimd (Neon) on mobile SOCs and AVX2 on desktop/simulators.
+/// Uses portable System.Runtime.Intrinsics (Vector512/Vector256/Vector128) with scalar fast-paths for N=1 and N=2.
 /// </summary>
 public static unsafe class GestureKernels
 {

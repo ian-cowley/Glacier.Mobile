@@ -39,7 +39,7 @@ public sealed class TelemetryMobileApp : MobileApplication
         var scrollContent = new Column(spacing: 12f)
         {
             new Header("Glacier.Mobile System Monitor"),
-            new Label("Pillar 8: High-Performance .NET 10 Native AOT Mobile Runtime")
+            new Label("Pillar 8: .NET 10 Headless Mobile UI & Touch Core")
             {
                 FontSize = 13f,
                 TextColor = new Color4(160, 175, 195, 255)
@@ -50,11 +50,10 @@ public sealed class TelemetryMobileApp : MobileApplication
                 new Button("Refresh Data", onClick: () => Console.WriteLine("    [UI Event] Refresh tapped")),
                 new Button("Export Snapshot", onClick: () => Console.WriteLine("    [UI Event] Export tapped"))
             },
-            new Header("Device Diagnostics"),
-            new Label("• Cold Startup Target: < 200 ms (Kivy: 3.8s–5.2s)"),
-            new Label("• Display Refresh Target: 120 Hz locked"),
-            new Label("• Memory Allocation: 0 GC bytes on hot path"),
-            new Label("• Compositor: GPU Skia / Vulkan / Metal")
+            new Header("Runtime Diagnostics"),
+            new Label("• Cold Startup Target: < 200 ms"),
+            new Label("• Frame Tick Rate: 120 Hz fixed-step"),
+            new Label("• Compositor: Headless SkiaSharp CPU Swapchain")
         };
 
         _scrollView = new ScrollView
@@ -79,8 +78,8 @@ public class Program
     {
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("================================================================================");
-        Console.WriteLine("   GLACIER.MOBILE: Cross-Platform Native AOT Mobile Runtime for .NET 10        ");
-        Console.WriteLine("       Zero-Allocation Touch | 120Hz Skia GPU Composition | Sub-200ms Startup   ");
+        Console.WriteLine("   GLACIER.MOBILE: .NET 10 Headless Mobile UI & Touch Core                     ");
+        Console.WriteLine("       Zero-Allocation Touch | 120Hz Headless Skia Composition | Sub-200ms Init ");
         Console.WriteLine("================================================================================");
         Console.ResetColor();
 
@@ -124,9 +123,9 @@ public class Program
         Console.WriteLine($"  - Total Frames Rendered:  {simulatedFrames:N0}");
         Console.WriteLine($"  - Total Wall Time:        {swSim.ElapsedMilliseconds:N1} ms");
         Console.WriteLine($"  - Average Frame Latency:  {frameUs:N2} µs ({(frameUs / 1000.0):N3} ms | Budget: 8.333 ms)");
-        Console.WriteLine($"  - Effective Frame Rate:   {fps:N1} FPS (Solid 120Hz Lock)");
+        Console.WriteLine($"  - Effective Frame Rate:   {fps:N1} FPS");
         Console.WriteLine($"  - GC Collections (Gen0):  {GC.CollectionCount(0)}");
-        Console.WriteLine($"  - Heap Allocations/Frame: {(allocatedBytes / (double)simulatedFrames):N1} bytes (Zero-Heap Hot Path)");
+        Console.WriteLine($"  - Heap Allocations/Frame: {(allocatedBytes / (double)simulatedFrames):N1} bytes");
         Console.ResetColor();
 
         // 3. High-Frequency Touch Input Simulation

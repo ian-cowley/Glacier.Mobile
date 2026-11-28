@@ -168,8 +168,43 @@ public abstract class MobileApplication : IDisposable
             Stop();
             PointerCaptures.Clear();
             TouchQueue.Clear();
+            DisposeVisualTree(RootView);
+            RootView = null;
             Compositor.Dispose();
             _disposed = true;
+        }
+    }
+
+    private static void DisposeVisualTree(MobileView? view)
+    {
+        if (view == null) return;
+
+        if (view is UI.Layouts.StackLayout stack)
+        {
+            for (int i = 0; i < stack.Children.Count; i++)
+            {
+                DisposeVisualTree(stack.Children[i]);
+            }
+        }
+        else if (view is UI.Layouts.ScrollView scroll)
+        {
+            DisposeVisualTree(scroll.Content);
+        }
+        else if (view is UI.Navigation.MobilePage page)
+        {
+            DisposeVisualTree(page.Content);
+        }
+        else if (view is UI.Navigation.NavigationStack nav)
+        {
+            foreach (var p in nav)
+            {
+                DisposeVisualTree(p);
+            }
+        }
+
+        if (view is IDisposable disposable)
+        {
+            disposable.Dispose();
         }
     }
 }

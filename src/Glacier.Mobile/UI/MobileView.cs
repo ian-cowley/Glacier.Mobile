@@ -6,8 +6,8 @@ using Glacier.Mobile.Input;
 using SkiaSharp;
 
 /// <summary>
-/// Base class for all high-performance retained-mode visual elements in Glacier.Mobile.
-/// Provides zero-allocation layout measurement, hit-testing, and GPU-accelerated Skia rendering.
+/// Base class for all retained-mode visual elements in Glacier.Mobile.
+/// Provides layout measurement, hit-testing, touch bubbling, and SkiaSharp rendering.
 /// </summary>
 public abstract class MobileView
 {
@@ -49,7 +49,7 @@ public abstract class MobileView
 
         if (BackgroundColor.A > 0)
         {
-            using var paint = new SKPaint { Color = BackgroundColor.ToSKColor(), Style = SKPaintStyle.Fill };
+            var paint = SkiaScratchCache.AcquireFillPaint(BackgroundColor.ToSKColor(), isAntialias: false);
             canvas.DrawRect(X, Y, ActualWidth, ActualHeight, paint);
         }
     }
@@ -70,14 +70,21 @@ public abstract class MobileView
 
     public virtual void ProcessTouch(in TouchEvent touch)
     {
-        if (GestureRecognizers.Count > 0)
+        bool consumed = false;
+        for (int i = 0; i < GestureRecognizers.Count; i++)
         {
-            for (int i = 0; i < GestureRecognizers.Count; i++)
+            var recognizer = GestureRecognizers[i];
+            recognizer.ProcessTouch(in touch);
+            if (recognizer is PanGestureRecognizer or PinchGestureRecognizer)
             {
-                GestureRecognizers[i].ProcessTouch(in touch);
+                if (recognizer.State == GestureState.Began || recognizer.State == GestureState.Changed)
+                {
+                    consumed = true;
+                }
             }
         }
-        else
+
+        if (!consumed)
         {
             Parent?.ProcessTouch(in touch);
         }

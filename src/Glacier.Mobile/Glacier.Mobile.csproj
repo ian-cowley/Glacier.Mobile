@@ -15,15 +15,15 @@
     <!-- NuGet Package Properties -->
     <PackageId>Glacier.Mobile</PackageId>
     <Version>1.1.1</Version>
-    <PackageReleaseNotes>v1.1.1: Layout/input fixes and aligned Plot 1.2.1 / Polaris 1.2.6 dependencies.</PackageReleaseNotes>
+    <PackageReleaseNotes>v1.1.1: Cached PlotView framebuffer/canvas, SKPaint pooling, touch bubbling, PinchGestureRecognizer partial-lift tracking, SPSC CachedRemote ring buffer, and honest net10.0 headless scope.</PackageReleaseNotes>
     <Authors>Ian Cowley</Authors>
     <Company>Glacier High-Performance Ecosystem</Company>
-    <Description>High-performance cross-platform mobile application runtime and declarative reactive UI engine for .NET 10 Native AOT. Zero-allocation touch pipeline, 120Hz GPU composition via SkiaSharp/Vulkan/Metal, and sub-200ms cold startup. Native C# alternative to Python Kivy.</Description>
+    <Description>High-performance headless mobile UI, layout, and touch/gesture pipeline core for .NET 10 Native AOT. Zero-allocation touch ring buffer, SIMD gesture inertia kernels, and SkiaSharp software/swapchain composition core.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/ian-cowley/Glacier.Mobile</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ian-cowley/Glacier.Mobile.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>mobile;ios;android;kivy;aot;nativeaot;skiasharp;vulkan;metal;touch;gestures;net10;glacier</PackageTags>
+    <PackageTags>mobile;ui;gestures;touch;aot;nativeaot;skiasharp;headless;simd;net10;glacier</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
@@ -32,9 +32,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="SkiaSharp" Version="2.88.9" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" />
-    <PackageReference Include="Glacier.Polaris" Version="1.2.6" />
-    <PackageReference Include="Glacier.Plot" Version="1.2.1" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../Glacier.Polaris/src/Glacier.Polaris/Glacier.Polaris.csproj" Condition="Exists('../../../Glacier.Polaris/src/Glacier.Polaris/Glacier.Polaris.csproj') and '$(UseLocalProjectReferences)' != 'false'" />
+    <PackageReference Include="Glacier.Polaris" Condition="!Exists('../../../Glacier.Polaris/src/Glacier.Polaris/Glacier.Polaris.csproj') or '$(UseLocalProjectReferences)' == 'false'" />
+
+    <ProjectReference Include="../../../Glacier.Plot/src/Glacier.Plot/Glacier.Plot.csproj" Condition="Exists('../../../Glacier.Plot/src/Glacier.Plot/Glacier.Plot.csproj') and '$(UseLocalProjectReferences)' != 'false'" />
+    <PackageReference Include="Glacier.Plot" Condition="!Exists('../../../Glacier.Plot/src/Glacier.Plot/Glacier.Plot.csproj') or '$(UseLocalProjectReferences)' == 'false'" />
   </ItemGroup>
 </Project>

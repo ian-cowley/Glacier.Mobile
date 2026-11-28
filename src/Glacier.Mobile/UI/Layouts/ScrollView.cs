@@ -1,11 +1,12 @@
 namespace Glacier.Mobile.UI.Layouts;
 
 using System;
+using System.Runtime.InteropServices;
 using Glacier.Mobile.Input;
 using SkiaSharp;
 
 /// <summary>
-/// Kinetic scrollable viewport delivering locked 120Hz flick scrolling with SIMD inertial physics.
+/// Kinetic scrollable viewport delivering 120Hz flick scrolling with inertial physics via GestureKernels.
 /// </summary>
 public sealed class ScrollView : MobileView
 {
@@ -63,15 +64,26 @@ public sealed class ScrollView : MobileView
     /// </summary>
     public void UpdatePhysics(float dt)
     {
+        if (dt <= 0f) return;
+
         if (MathF.Abs(_scrollVelocityY) > GestureKernels.VelocityEpsilon)
         {
             _scrollOffsetY += _scrollVelocityY * dt;
             ClampScroll();
 
-            Span<float> vel = stackalloc float[1] { _scrollVelocityY };
-            GestureKernels.ApplyInertiaDamping(vel, MathF.Pow(Friction, dt * 120.0f));
-            _scrollVelocityY = vel[0];
+            GestureKernels.ApplyInertiaDamping(
+                MemoryMarshal.CreateSpan(ref _scrollVelocityY, 1),
+                MathF.Pow(Friction, dt * 120.0f));
         }
+    }
+
+    /// <summary>
+    /// Applies SIMD-accelerated inertial damping across a batch of scroll velocities.
+    /// </summary>
+    public static void UpdatePhysicsBatch(Span<float> velocities, float dt, float friction = 0.92f)
+    {
+        if (dt <= 0f || velocities.IsEmpty) return;
+        GestureKernels.ApplyInertiaDamping(velocities, MathF.Pow(friction, dt * 120.0f));
     }
 
     private void ClampScroll()

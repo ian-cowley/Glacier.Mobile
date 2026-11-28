@@ -24,7 +24,7 @@ public interface IHardwareFrame : IDisposable
 
 /// <summary>
 /// Hardware Abstraction Layer (HAL) swapchain interface decoupling Glacier.Mobile rendering
-/// from underlying platform windowing systems (Vulkan on Android, Metal on iOS, or Headless off-screen).
+/// from platform windowing systems. In-repo builds ship with CPU HeadlessSwapchain for off-screen rendering.
 /// </summary>
 public interface IMobileSwapchain : IDisposable
 {

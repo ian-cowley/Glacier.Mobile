@@ -1,6 +1,7 @@
 namespace Glacier.Mobile.Benchmarks;
 
 using System;
+using System.Runtime.Intrinsics;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Glacier.Mobile.Input;
@@ -103,7 +104,11 @@ public class Program
         swBatch.Stop();
         double usPerBatch = (swBatch.Elapsed.TotalMilliseconds * 1000.0) / batchIterations;
         double itemsPerSec = (double)batchSize * batchIterations / swBatch.Elapsed.TotalSeconds;
-        Console.WriteLine($"[10,000 Vector512 SIMD Damping]: {swBatch.Elapsed.TotalMilliseconds:F2} ms for {batchIterations:N0} runs | Latency: {usPerBatch:F3} μs/batch | Throughput: {itemsPerSec / 1e6:F2} M items/s");
+        string simdTier = Vector512.IsHardwareAccelerated ? "Vector512"
+            : Vector256.IsHardwareAccelerated ? "Vector256"
+            : Vector128.IsHardwareAccelerated ? "Vector128"
+            : "Scalar";
+        Console.WriteLine($"[10,000 {simdTier} SIMD Damping]: {swBatch.Elapsed.TotalMilliseconds:F2} ms for {batchIterations:N0} runs | Latency: {usPerBatch:F3} μs/batch | Throughput: {itemsPerSec / 1e6:F2} M items/s");
 
         // 3. Touch Input Dispatch
         Console.WriteLine("\n--- 3. Touch Input Dispatch (1,000,000 Events) ---");
@@ -184,7 +189,7 @@ public class MobileBenchmarks
     [Benchmark(Description = "Touch Input Dispatch (10,000 Events)")]
     public void Benchmark_TouchDispatch()
     {
-        for (int i = 0; i < 1000; i++)
+        for (int i = 0; i < 10_000; i++)
         {
             _dispatcher.Dispatch(new TouchEvent(0, 100f + i, 200f + i, TouchPhase.Moved));
         }
@@ -196,7 +201,7 @@ public class MobileBenchmarks
         GestureKernels.ApplyInertiaDamping(_velocities, 0.95f);
     }
 
-    [Benchmark(Description = "Visual Tree Layout & GPU Render (Full Screen)")]
+    [Benchmark(Description = "Visual Tree Layout & Headless Skia Render (Full Screen)")]
     public void Benchmark_RenderTree()
     {
         _compositor.BeginFrame();

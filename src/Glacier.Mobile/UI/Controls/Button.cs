@@ -31,12 +31,7 @@ public sealed class Button : MobileView
 
     public override void Measure(float availableWidth, float availableHeight)
     {
-        using var paint = new SKPaint
-        {
-            Typeface = Label.SemiBoldTypeface,
-            TextSize = FontSize,
-            IsAntialias = true
-        };
+        var paint = SkiaScratchCache.AcquireTextPaint(Label.SemiBoldTypeface, FontSize, TextColor.ToSKColor(), isAntialias: true);
         float textW = paint.MeasureText(Text);
 
         float measuredW = !float.IsNaN(Width) ? Width : textW + Padding.Horizontal + Margin.Horizontal;
@@ -51,26 +46,14 @@ public sealed class Button : MobileView
         if (!IsVisible) return;
 
         // Draw rounded button background
-        using var bgPaint = new SKPaint
-        {
-            Color = BackgroundColor.ToSKColor(),
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-
-        using var rect = new SKRoundRect(new SKRect(X, Y, X + ActualWidth, Y + ActualHeight), CornerRadius);
+        var bgPaint = SkiaScratchCache.AcquireFillPaint(BackgroundColor.ToSKColor(), isAntialias: true);
+        var rect = SkiaScratchCache.AcquireRoundRect(X, Y, X + ActualWidth, Y + ActualHeight, CornerRadius);
         canvas.DrawRoundRect(rect, bgPaint);
 
         // Draw button label
         if (!string.IsNullOrEmpty(Text))
         {
-            using var textPaint = new SKPaint
-            {
-                Typeface = Label.SemiBoldTypeface,
-                TextSize = FontSize,
-                Color = TextColor.ToSKColor(),
-                IsAntialias = true
-            };
+            var textPaint = SkiaScratchCache.AcquireTextPaint(Label.SemiBoldTypeface, FontSize, TextColor.ToSKColor(), isAntialias: true);
 
             float textW = textPaint.MeasureText(Text);
             float textX = X + (ActualWidth - textW) * 0.5f;

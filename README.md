@@ -10,35 +10,30 @@
 [![Website](https://img.shields.io/badge/Website-glaciersoftware.dev-66fcf1.svg)](https://glaciersoftware.dev/)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-orange.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/glaciersoftware)
 
-> **Native AOT Cross-Platform Mobile Engine for C# .NET 10 (Systematically Beating Python Kivy)**
+> **Headless .NET 10 Native AOT UI, Layout, and Touch/Gesture Pipeline Core**
 
-`Glacier.Mobile` is a cross-platform mobile application runtime engineered natively for C# .NET 10 Native AOT. It provides sub-200ms cold startup, SkiaSharp / Metal / Vulkan composition, and a zero-allocation touch/gesture pipeline running at a 120Hz refresh rate.
+`Glacier.Mobile` is a `net10.0` headless mobile UI layout tree, touch-dispatch pipeline, and SkiaSharp composition core built for .NET 10 and Native AOT compatibility. It provides stack-allocated touch event payloads, a lock-free SPSC `TouchRingBuffer`, gesture recognizers (`Tap`, `Pan`, `Pinch`), SIMD inertial damping kernels, and a swapchain HAL (`IMobileSwapchain` / `ICompositor`) that ships in-repo with CPU `HeadlessSwapchain` and `HeadlessCompositor` for deterministic off-screen rendering, testing, and benchmarks.
 
----
-
-## 1. Why Glacier.Mobile? Replacing Python Kivy
-
-**Kivy** suffers from production shortcomings on mobile devices:
-
-1. **Cold Start Latency**: Initializing the CPython interpreter takes **3 to 6 seconds** on typical mobile hardware before displaying the first frame.
-2. **Binary Bloat**: Bundling CPython and C extensions inflates minimal APKs/IPAs to 80MB–150MB.
-3. **Touch Stutter**: Python event loops struggle to sustain 120Hz ProMotion / Smooth Display scrolling without GC jank.
-
-**Glacier.Mobile** addresses these challenges natively on .NET 10:
-- **Direct Native ARM64 Machine Code**: Ahead-of-time (AOT) compilation with zero interpreter overhead.
-- **120Hz Kinetic Physics & Rendering**: `MobileApplication.Step(dt)` ticks `ScrollView` SIMD inertial damping alongside hardware-accelerated SkiaSharp composition.
-- **Zero-Allocation Touch Pipeline**: Stack-allocated `readonly ref struct TouchEvent` payloads and a lock-free SPSC `TouchRingBuffer`.
+> **Scope Note:** This package targets `net10.0` only. It does **not** ship `net10.0-android` / `net10.0-ios` target frameworks, platform windowing hosts, or `GRContext` Vulkan/Metal GPU backends; platform hosts plug in through `IMobileSwapchain` and `ICompositor`.
 
 ---
 
-## 🖼️ Visual Gallery: Real Rendered Mobile UI Snapshot
+## 1. Core Architecture
+
+- **Retained-Mode Layout Tree**: `MobileView`, `StackLayout` (`Column` / `Row`), `ScrollView`, `NavigationStack`, `MobilePage` (`Screen`), `Label`, `Header`, `Button`, `PlotView`, and `TelemetryView`.
+- **120Hz Kinetic Physics**: `MobileApplication.Step(dt)` drains queued touch events, ticks `ScrollView.UpdatePhysics(dt)` via `GestureKernels.ApplyInertiaDamping` (portable `Vector512`/`Vector256`/`Vector128` SIMD for batch spans and scalar fast-paths for `N=1`/`N=2`), and renders the visual tree.
+- **Zero-Allocation Touch Pipeline**: Stack-only `readonly ref struct TouchEvent` payloads, cache-line-isolated SPSC `TouchRingBuffer` with `CachedRemote` shadow cursors and batch `Span.CopyTo` draining, and `PointerCaptureTable`.
+
+---
+
+## 🖼️ Visual Gallery: Headless Rendered Snapshot
 
 <div align="center">
 
-| Glacier.Mobile System Monitor (iOS / Android Layout) |
+| Glacier.Mobile System Monitor (Headless SkiaSharp Render) |
 | :---: |
 | <img src="docs/images/glacier_mobile_dashboard.png" width="393" alt="Glacier.Mobile System Monitor" /> |
-| *Native mobile layout with Polaris DataFrame telemetry stream, device diagnostics, and touch controls* |
+| *Headless SkiaSharp render with Polaris DataFrame telemetry stream, diagnostics, and touch controls* |
 
 </div>
 
@@ -57,7 +52,7 @@ public readonly ref struct TouchEvent
     public readonly TouchPhase Phase;
 }
 ```
-Touch events flow from OS callbacks through `TouchRingBuffer` and `PointerCaptureTable` to `TapGestureRecognizer`, `PanGestureRecognizer` (with incremental `DeltaX`/`DeltaY`), and `PinchGestureRecognizer` (with incremental `DeltaScale`).
+Touch events flow through `TouchRingBuffer`, `TouchDispatcher`, and `PointerCaptureTable` to `TapGestureRecognizer`, `PanGestureRecognizer` (with incremental `DeltaX`/`DeltaY`), and `PinchGestureRecognizer` (with incremental `DeltaScale` and surviving-finger tracking across single-finger lifts), with touch bubbling from child controls like `Button` to parent `ScrollView` containers.
 
 ---
 
@@ -107,17 +102,18 @@ public sealed class AppShell : MobileApplication
 
 - **[Glacier Ecosystem Website](https://glaciersoftware.dev/)**: Unified .NET 10 high-performance architecture overview.
 - **[Glacier.Desktop](https://github.com/ian-cowley/Glacier.Desktop)**: Native desktop GUI engine and virtualized 1M-row data grids.
-- **[Glacier.Plot](https://github.com/ian-cowley/Glacier.Plot)**: High-speed mobile charts integrated via `PlotView`.
+- **[Glacier.Plot](https://github.com/ian-cowley/Glacier.Plot)**: High-speed charts integrated via `PlotView`.
 - **[Glacier.Polaris](https://github.com/ian-cowley/Glacier.Polaris)**: Embedded columnar analytics powering `TelemetryView`.
 
 ---
 
-## 🆕 What's New in v1.1.0
+## 🆕 What's New in v1.1.1
 
-- **Cached `SKTypeface` & Native Handle Hygiene** — eliminated per-frame `SKTypeface.FromFamilyName` allocations in `Label` and `Button` and ensured `SKRoundRect` native handles are deterministically disposed.
-- **Live 120Hz `ScrollView` Inertial Physics & Touch Bubbling** — `MobileApplication.Step(dt)` now ticks `MobileView.Update(dt)` across the active visual tree, and passive child views bubble touch gestures cleanly to parent `ScrollView` containers.
-- **Incremental `DeltaX`/`DeltaY` & `DeltaScale` Gesture Tracking** — eliminated compounding quadratic pan drift and exponential pinch zoom in `PlotView`.
-- **Upgraded to `Glacier.Polaris 1.1.0` and `Glacier.Plot 1.1.0`** with zero transitive NuGet vulnerabilities and NuGet OIDC Trusted Publishing CI.
+- **Cached `PlotView` Framebuffer/Canvas & Straight Alpha** — reuses `LinearFramebuffer` and `CpuGraphicsCanvas` across same-size frames (`IDisposable`), eliminating per-frame 4 MB `GlyphAtlas` LOH allocations and switching pixel wrapping to `SKAlphaType.Unpremul`.
+- **`[ThreadStatic]` Skia Scratch Pooling & `TelemetryView` Zero-Copy Binding** — pools `SKPaint`/`SKRoundRect` in `MobileView`/`Button`/`Label`, uses `col.AsFloatMemory()` in `TelemetryView.BindDataFrame`, and disposes replaced `Figure` instances.
+- **Touch Bubbling & `PinchGestureRecognizer` Single-Finger Lift** — bubbles `Button` touches cleanly to parent `ScrollView` containers while suppressing parent bubbling during active `PlotView` pan/pinch, and preserves the surviving finger when one pinch pointer lifts.
+- **Self-Contained `TouchRingBuffer` Shadow Cursors & Batch `Drain`** — adds 128-byte `PaddedCursor` (`CachedRemote`) isolation and 2-segment `Span.CopyTo` draining.
+- **Aligned Dependencies (`Glacier.Polaris 1.2.6`, `Glacier.Plot 1.2.1`)** and platform-neutral core NuGet packaging (Linux Skia native assets live in sample/test/benchmark projects).
 
 ---
 

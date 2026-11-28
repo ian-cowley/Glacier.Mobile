@@ -4,18 +4,20 @@ using System;
 using Glacier.Mobile.UI;
 using Glacier.Mobile.UI.Controls;
 using Glacier.Mobile.UI.Layouts;
+using Glacier.Plot.Interop;
 using Glacier.Polaris;
 using Glacier.Polaris.Data;
 
 /// <summary>
-/// Real-time mobile dashboard view consuming Glacier.Polaris DataFrames.
-/// Displays tabular summaries and streaming telemetry statistics on mobile screens.
+/// Real-time dashboard view consuming Glacier.Polaris DataFrames.
+/// Displays tabular summaries and streaming telemetry statistics.
 /// </summary>
-public sealed class TelemetryView : Column
+public sealed class TelemetryView : Column, IDisposable
 {
     private readonly Label _titleLabel;
     private readonly Label _statsLabel;
     private readonly PlotView _plotView;
+    private bool _disposed;
 
     public TelemetryView(string title = "Live Telemetry") : base(spacing: 12f)
     {
@@ -33,30 +35,43 @@ public sealed class TelemetryView : Column
     }
 
     /// <summary>
-    /// Binds a Glacier.Polaris DataFrame to update mobile telemetry statistics and charts.
+    /// Binds a Glacier.Polaris DataFrame to update telemetry statistics and charts.
     /// </summary>
     public void BindDataFrame(DataFrame df, string metricColumnName = "Value")
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(df);
+
         int rowCount = df.RowCount;
         var col = df.Columns.Find(c => c.Name == metricColumnName);
 
         if (col != null && rowCount > 0)
         {
-            var values = new float[rowCount];
-            for (int i = 0; i < rowCount; i++)
+            ReadOnlyMemory<float> values = col.AsFloatMemory();
+            if (values.Length > rowCount)
             {
-                values[i] = Convert.ToSingle(col.Get(i));
+                values = values.Slice(0, rowCount);
             }
 
-            _plotView.Figure = new Glacier.Plot.Figures.Figure();
-            _plotView.Figure.PlotSignal(values, label: metricColumnName);
+            var nextFigure = new Glacier.Plot.Figures.Figure();
+            nextFigure.PlotSignal(values, label: metricColumnName);
+            _plotView.SetOwnedFigure(nextFigure);
 
-            float lastVal = values[^1];
+            float lastVal = values.IsEmpty ? 0f : values.Span[^1];
             _statsLabel.Text = $"Rows: {rowCount:N0} | Current: {lastVal:F2} | Stream: Active";
         }
         else
         {
             _statsLabel.Text = $"DataFrame: {df.RowCount:N0} rows, {df.Columns.Count} columns";
+        }
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _plotView.Dispose();
+            _disposed = true;
         }
     }
 }

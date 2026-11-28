@@ -66,7 +66,8 @@ public class LayoutAndVisualTreeTests
 
         Assert.Equal(300f, scroll.ActualWidth);
         Assert.Equal(400f, scroll.ActualHeight);
-        Assert.Equal(1000f, scroll.Content.ActualHeight);
+        Assert.NotNull(scroll.Content);
+        Assert.Equal(1000f, scroll.Content!.ActualHeight);
         Assert.Equal(600f, scroll.MaxScrollY); // 1000 - 400
     }
 

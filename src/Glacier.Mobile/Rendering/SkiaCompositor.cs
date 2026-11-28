@@ -5,8 +5,9 @@ using Glacier.Mobile.UI;
 using SkiaSharp;
 
 /// <summary>
-/// GPU-accelerated SkiaSharp compositor targeting Metal (iOS) and Vulkan (Android).
-/// Supports rendering either via an IMobileSwapchain HAL or directly to an external canvas.
+/// SkiaSharp visual-tree compositor rendering either via an IMobileSwapchain HAL
+/// (currently CPU HeadlessSwapchain / HeadlessCompositor; no GRContext Vulkan/Metal backend included)
+/// or directly to an external SKCanvas.
 /// </summary>
 public sealed class SkiaCompositor : ICompositor
 {

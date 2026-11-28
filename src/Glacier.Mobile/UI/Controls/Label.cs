@@ -12,7 +12,7 @@ public enum TextAlignment : byte
 }
 
 /// <summary>
-/// Fast native text label rendered with GPU Skia fonts.
+/// Text label rendered with SkiaSharp fonts.
 /// </summary>
 public class Label : MobileView
 {
@@ -29,9 +29,13 @@ public class Label : MobileView
         foreach (string family in families)
         {
             var tf = SKTypeface.FromFamilyName(family, weight, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
-            if (tf != null && tf.GlyphCount > 0)
+            if (tf != null)
             {
-                return tf;
+                if (tf.GlyphCount > 0)
+                {
+                    return tf;
+                }
+                tf.Dispose();
             }
         }
 
@@ -56,9 +60,13 @@ public class Label : MobileView
             if (File.Exists(path))
             {
                 var fileTf = SKTypeface.FromFile(path);
-                if (fileTf != null && fileTf.GlyphCount > 0)
+                if (fileTf != null)
                 {
-                    return fileTf;
+                    if (fileTf.GlyphCount > 0)
+                    {
+                        return fileTf;
+                    }
+                    fileTf.Dispose();
                 }
             }
         }
@@ -85,12 +93,11 @@ public class Label : MobileView
 
     public override void Measure(float availableWidth, float availableHeight)
     {
-        using var paint = new SKPaint
-        {
-            Typeface = IsBold ? BoldTypeface : RegularTypeface,
-            TextSize = FontSize,
-            IsAntialias = true
-        };
+        var paint = SkiaScratchCache.AcquireTextPaint(
+            IsBold ? BoldTypeface : RegularTypeface,
+            FontSize,
+            TextColor.ToSKColor(),
+            isAntialias: true);
         var textBounds = new SKRect();
         paint.MeasureText(Text, ref textBounds);
 
@@ -112,13 +119,11 @@ public class Label : MobileView
         if (!IsVisible || string.IsNullOrEmpty(Text)) return;
         base.Render(canvas);
 
-        using var paint = new SKPaint
-        {
-            Typeface = IsBold ? BoldTypeface : RegularTypeface,
-            TextSize = FontSize,
-            Color = TextColor.ToSKColor(),
-            IsAntialias = true
-        };
+        var paint = SkiaScratchCache.AcquireTextPaint(
+            IsBold ? BoldTypeface : RegularTypeface,
+            FontSize,
+            TextColor.ToSKColor(),
+            isAntialias: true);
 
         float textX = X + Padding.Left;
         if (Alignment == TextAlignment.Center)

@@ -11,6 +11,7 @@ public sealed class TapGestureRecognizer : IGestureRecognizer
     private const float MaxTapMovementSq = 100f; // 10px tolerance
     private TouchSnapshot _startTouch;
     private bool _tracking;
+    private int _trackedPointerId = -1;
 
     public int NumberOfTapsRequired { get; set; } = 1;
     public GestureState State { get; private set; } = GestureState.Possible;
@@ -21,26 +22,31 @@ public sealed class TapGestureRecognizer : IGestureRecognizer
         switch (touch.Phase)
         {
             case TouchPhase.Began:
-                _startTouch = new TouchSnapshot(in touch);
-                _tracking = true;
-                State = GestureState.Possible;
+                if (!_tracking)
+                {
+                    _trackedPointerId = touch.PointerId;
+                    _startTouch = new TouchSnapshot(in touch);
+                    _tracking = true;
+                    State = GestureState.Possible;
+                }
                 break;
 
             case TouchPhase.Moved:
-                if (_tracking)
+                if (_tracking && touch.PointerId == _trackedPointerId)
                 {
                     float dx = touch.X - _startTouch.X;
                     float dy = touch.Y - _startTouch.Y;
                     if (dx * dx + dy * dy > MaxTapMovementSq)
                     {
                         _tracking = false;
+                        _trackedPointerId = -1;
                         State = GestureState.Failed;
                     }
                 }
                 break;
 
             case TouchPhase.Ended:
-                if (_tracking)
+                if (_tracking && touch.PointerId == _trackedPointerId)
                 {
                     double tapDuration = (touch.Timestamp - _startTouch.Timestamp) / (double)Stopwatch.Frequency;
                     if (tapDuration < 0.5) // Max 500ms press
@@ -53,11 +59,15 @@ public sealed class TapGestureRecognizer : IGestureRecognizer
                         State = GestureState.Failed;
                     }
                     _tracking = false;
+                    _trackedPointerId = -1;
                 }
                 break;
 
             case TouchPhase.Cancelled:
-                Reset();
+                if (_tracking && touch.PointerId == _trackedPointerId)
+                {
+                    Reset();
+                }
                 break;
         }
     }
@@ -65,6 +75,7 @@ public sealed class TapGestureRecognizer : IGestureRecognizer
     public void Reset()
     {
         _tracking = false;
+        _trackedPointerId = -1;
         State = GestureState.Possible;
     }
 }
