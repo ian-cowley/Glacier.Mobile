@@ -5,12 +5,14 @@
   <PropertyGroup Condition="'$(_RootPackagesPropsLoaded)' != 'true'">
     <_GlacierRelProjDir>\$([MSBuild]::MakeRelative('$(MSBuildThisFileDirectory)', '$(MSBuildProjectDirectory)'))\</_GlacierRelProjDir>
     <ManagePackageVersionsCentrally Condition="'$(ManagePackageVersionsCentrally)' == '' and !$(_GlacierRelProjDir.Contains('\scratch\'))">true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled Condition="'$(CentralPackageTransitivePinningEnabled)' == ''">true</CentralPackageTransitivePinningEnabled>
     <NoWarn>$(NoWarn);NU1507</NoWarn>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(_RootPackagesPropsLoaded)' != 'true'">
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
-    <PackageVersion Include="Glacier.Plot" Version="1.2.1" />
+    <PackageVersion Include="Glacier.Graphics" Version="1.2.2" />
+    <PackageVersion Include="Glacier.Plot" Version="1.2.2" />
     <PackageVersion Include="Glacier.Polaris" Version="1.2.6" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="SkiaSharp" Version="2.88.9" />
